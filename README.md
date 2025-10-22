@@ -18,35 +18,17 @@ docker-compose up -d
 
 SonarQube will be available at [http://localhost:9000](http://localhost:9000).
 
-### 2. Scan an Image with Trivy
+### 2. Scan Image and Import to SonarQube
 
-The `trivy_image.sh` script scans a Docker image and generates a SARIF report.
-
-**Usage:**
-
-```bash
-./trivy_image.sh <image_name>
-```
-
-This will create a SARIF file in the `reports` directory. For example, scanning the image `my-app:latest` will create a report named `reports/my-app_latest.sarif`.
-
-### 3. Import the SARIF Report into SonarQube
-
-The `sonar_scan.sh` script imports the SARIF report into a SonarQube project.
+The `scan_image.sh` script orchestrates the entire process. It scans a specified Docker image with Trivy, generates a SARIF report, and then imports that report into a SonarQube project. If the project doesn't exist, SonarQube will create it automatically during the import.
 
 **Usage:**
 
-Before running the script, you need to create a project in SonarQube and get a project key. You must also set the `SONAR_AUTH_TOKEN` environment variable to your SonarQube access token.
+Before running the script, you must set the `SONAR_AUTH_TOKEN` environment variable to your SonarQube access token.
 
 ```bash
 export SONAR_AUTH_TOKEN=<your_sonarqube_token>
-./sonar_scan.sh -k <project_key> -i <path_to_sarif_report>
+./scan_image.sh -i <image_name>
 ```
 
-**Example:**
 
-```bash
-./sonar_scan.sh -k my-project -i reports/my-app_latest.sarif
-```
-
-This will import the Trivy scan results into the "my-project" project in SonarQube.
