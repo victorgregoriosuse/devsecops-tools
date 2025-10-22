@@ -16,7 +16,9 @@ The `compose.yml` file starts a SonarQube instance along with a PostgreSQL datab
 docker-compose up -d
 ```
 
-SonarQube will be available at [http://localhost:9000](http://localhost:9000).
+* SonarQube will be available at [http://localhost:9000](http://localhost:9000).
+* Login and change the admin password from the default.
+* Configure an access token at [http://localhost:9000/account/security](http://localhost:9000/account/security).
 
 ### 2. Scan Image and Import to SonarQube
 
@@ -30,5 +32,4 @@ Before running the script, you must set the `SONAR_AUTH_TOKEN` environment varia
 export SONAR_AUTH_TOKEN=<your_sonarqube_token>
 ./scan_image.sh -i <image_name>
 ```
-
 
