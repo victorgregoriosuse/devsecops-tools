@@ -72,7 +72,8 @@ fi
 # SCAN TO SARIF
 #
 
-SARIF_CLEAN_NAME=$(echo "$SCAN_IMAGE" | tr '/:' '-' | tr -c '[:alnum:]-_' '_')
+RAW_CLEAN_NAME=$(echo "$SCAN_IMAGE" | tr '/:' '-' | tr -c '[:alnum:]-_' '_')
+SARIF_CLEAN_NAME=$(echo "$RAW_CLEAN_NAME" | sed 's/_*$//') # Remove trailing underscores
 mkdir -p "$TRIVY_REPORTS_DIR"
 
 # seed local docker with image
