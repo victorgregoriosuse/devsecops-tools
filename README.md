@@ -48,3 +48,25 @@ Before running the script, you must set the `SONAR_AUTH_TOKEN` environment varia
 export SONAR_AUTH_TOKEN=<your_sonarqube_token>
 ./scan_image.sh -i <image_name> {-t|-d} [-k <sonar_project_key>]
 ```
+
+### 3. Managing SonarQube Service
+
+The `docker-compose up -d` command starts the SonarQube and PostgreSQL services in detached mode, running them in the background.
+
+**Viewing Logs**
+
+If you started the services in detached mode, you can view their logs using:
+
+```bash
+docker-compose logs -f
+```
+
+Alternatively, you can run the services in the foreground by omitting the `-d` flag. This will stream logs directly to your terminal. Press `Ctrl+C` to stop the services.
+
+**Stopping Services**
+
+To stop and remove the containers, network, and volumes created by `docker-compose up`, run:
+
+```bash
+docker-compose down
+```
