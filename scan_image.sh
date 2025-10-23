@@ -16,7 +16,7 @@ log_err() {
 }
 
 usage() {
-    log_err "Usage: $0 -i <image_name>"
+    log_err "Usage: $0 -i <image_name> [-k <sonar_project_key>]"
     exit 1
 }
 
@@ -34,8 +34,9 @@ SONAR_DOCKER_NETWORK=${SONAR_DOCKER_NETWORK:-"devsecops-tools_default"} # Defaul
 # ARGUMENT PARSING
 #
 
-while getopts "r:i:h" opt; do
+while getopts "k:i:h" opt; do
     case ${opt} in
+        k) SONAR_PROJECT_KEY_OVERRIDE=${OPTARG} ;;
         i) SCAN_IMAGE=${OPTARG} ;; 
         h) usage ;; 
         *) usage ;; 
@@ -93,7 +94,11 @@ fi
 #
 
 # name project key the same as sarif clean name
-SONAR_PROJECT_KEY="${TRIVY_SARIF_CLEAN_NAME}"
+if [ -n "$SONAR_PROJECT_KEY_OVERRIDE" ]; then
+    SONAR_PROJECT_KEY="$SONAR_PROJECT_KEY_OVERRIDE"
+else
+    SONAR_PROJECT_KEY="${TRIVY_SARIF_CLEAN_NAME}"
+fi
 
 # sonar scanner cli options
 SONAR_SCANNER_OPTS="-Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.sarifReportPaths=${TRIVY_SARIF_FILENAME}"

@@ -30,6 +30,5 @@ Before running the script, you must set the `SONAR_AUTH_TOKEN` environment varia
 
 ```bash
 export SONAR_AUTH_TOKEN=<your_sonarqube_token>
-./scan_image.sh -i <image_name>
+./scan_image.sh -i <image_name> [-k <sonar_project_key>]
 ```
-
