@@ -1,6 +1,6 @@
 # DevSecOps Tools
 
-This repository contains scripts to integrate Trivy vulnerability scans with SonarQube.
+This repository contains scripts to integrate container vulnerability scans with SonarQube using either Trivy or Docker Scout.
 
 ## Workflow
 
@@ -22,7 +22,7 @@ docker-compose up -d
 
 ### 2. Scan Image and Import to SonarQube
 
-The `scan_image.sh` script orchestrates the entire process. It scans a specified Docker image with Trivy, generates a SARIF report, and then imports that report into a SonarQube project. If the project doesn't exist, SonarQube will create it automatically during the import.
+The `scan_image.sh` script orchestrates the entire process. It scans a specified Docker image with either Trivy or Docker Scout, generates a SARIF report, and then imports that report into a SonarQube project. If the project doesn't exist, SonarQube will create it automatically during the import.
 
 **Usage:**
 
@@ -30,5 +30,5 @@ Before running the script, you must set the `SONAR_AUTH_TOKEN` environment varia
 
 ```bash
 export SONAR_AUTH_TOKEN=<your_sonarqube_token>
-./scan_image.sh -i <image_name> [-k <sonar_project_key>]
+./scan_image.sh -i <image_name> {-t|-d} [-k <sonar_project_key>]
 ```
