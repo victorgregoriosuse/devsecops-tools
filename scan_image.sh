@@ -122,6 +122,9 @@ else
     SONAR_PROJECT_KEY="${SARIF_CLEAN_NAME}"
 fi
 
+# Ensure project key does not exceed SonarQube's 400 character limit
+SONAR_PROJECT_KEY=${SONAR_PROJECT_KEY:0:400}
+
 # sonar scanner cli options
 SONAR_SCANNER_OPTS="-Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.sarifReportPaths=${SARIF_FILENAME}"
 
