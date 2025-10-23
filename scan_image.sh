@@ -16,7 +16,9 @@ log_err() {
 }
 
 usage() {
-    log_err "Usage: $0 -i <image_name> [-k <sonar_project_key>]"
+    log_err "Usage: $0 -i <image_name> {-t|-d} [-k <sonar_project_key>]"
+    log_err "  -t: Scan with Trivy"
+    log_err "  -d: Scan with Docker Scout"
     exit 1
 }
 
@@ -34,12 +36,17 @@ SONAR_DOCKER_NETWORK=${SONAR_DOCKER_NETWORK:-"devsecops-tools_default"} # Defaul
 # ARGUMENT PARSING
 #
 
-while getopts "k:i:h" opt; do
+SCAN_TOOL=""
+
+while getopts "k:i:htd" opt; do
     case ${opt} in
         k) SONAR_PROJECT_KEY_OVERRIDE=${OPTARG} ;;
         i) SCAN_IMAGE=${OPTARG} ;; 
+        t) SCAN_TOOL="trivy" ;;
+        d) SCAN_TOOL="dockerscout" ;;
         h) usage ;; 
-        *) usage ;; 
+        \?) usage ;;
+        *) echo "unhandled option: $opt"; usage ;;
     esac
 done
 
@@ -52,41 +59,60 @@ if [ -z "${SONAR_AUTH_TOKEN}" ]; then
     exit 1
 fi
 
-#
-# TRIVY SCAN TO SARIF
-#
-
 if [ -z "$SCAN_IMAGE" ]; then
     usage
 fi
 
-TRIVY_SARIF_CLEAN_NAME=$(echo "$SCAN_IMAGE" | tr '/:' '-' | tr '/.' '_')
+if [ -z "$SCAN_TOOL" ]; then
+    log_err "Error: A scan tool must be specified with either -t (Trivy) or -d (Docker Scout)."
+    usage
+fi
+
+#
+# SCAN TO SARIF
+#
+
+RAW_CLEAN_NAME=$(echo "$SCAN_IMAGE" | tr '/:' '-' | tr -c '[:alnum:]-_' '_')
+SARIF_CLEAN_NAME=$(echo "$RAW_CLEAN_NAME" | sed 's/_*$//') # Remove trailing underscores
 mkdir -p "$TRIVY_REPORTS_DIR"
-TRIVY_SARIF_FILENAME="$TRIVY_SARIF_CLEAN_NAME.sarif"
 
 # seed local docker with image
 log_info "Pulling image: $SCAN_IMAGE"
 docker pull "$SCAN_IMAGE"
 
-# run trivy scan connecting to docker daemon via socket for seeded image
-log_info "Scanning image '$SCAN_IMAGE' with Trivy..."
-docker run \
-    --rm \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$TRIVY_REPORTS_DIR:/reports" \
-    "$TRIVY_IMAGE" image \
-    --timeout $TRIVY_TIMEOUT \
-    --format sarif \
-    --output "/reports/$TRIVY_SARIF_FILENAME" "$SCAN_IMAGE"
+if [ "$SCAN_TOOL" == "trivy" ]; then
+    TOOL_SUFFIX="_Trivy"
+    SARIF_FILENAME="${SARIF_CLEAN_NAME}${TOOL_SUFFIX}.sarif"
+    # run trivy scan connecting to docker daemon via socket for seeded image
+    log_info "Scanning image '$SCAN_IMAGE' with Trivy..."
+    docker run \
+        --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$TRIVY_REPORTS_DIR:/reports" \
+        "$TRIVY_IMAGE" \
+        image \
+        --scanners vuln \
+        --timeout "$TRIVY_TIMEOUT" \
+        --format sarif \
+        --output "/reports/$SARIF_FILENAME" "$SCAN_IMAGE"
+elif [ "$SCAN_TOOL" == "dockerscout" ]; then
+    TOOL_SUFFIX="_DockerScout"
+    SARIF_FILENAME="${SARIF_CLEAN_NAME}${TOOL_SUFFIX}.sarif"
+    log_info "Scanning image '$SCAN_IMAGE' with Docker Scout..."
+    docker scout cves "$SCAN_IMAGE" --format sarif --output "$TRIVY_REPORTS_DIR/$SARIF_FILENAME"
+else
+    log_err "Internal error: Unknown scan tool '$SCAN_TOOL'"
+    exit 1
+fi
 
 RETVAL=$?
 
 if [ $RETVAL -ne 0 ]; then
-    log_err "Trivy scan failed for image: $SCAN_IMAGE"
+    log_err "Scan failed for image: $SCAN_IMAGE"
     exit $RETVAL
 else
-    log_info "Trivy scan completed successfully."
-    log_info "Report saved to: $TRIVY_REPORTS_DIR/$TRIVY_SARIF_FILENAME"
+    log_info "Scan completed successfully."
+    log_info "Report saved to: $TRIVY_REPORTS_DIR/$SARIF_FILENAME"
 fi
 
 #
@@ -97,11 +123,14 @@ fi
 if [ -n "$SONAR_PROJECT_KEY_OVERRIDE" ]; then
     SONAR_PROJECT_KEY="$SONAR_PROJECT_KEY_OVERRIDE"
 else
-    SONAR_PROJECT_KEY="${TRIVY_SARIF_CLEAN_NAME}"
+    SONAR_PROJECT_KEY="${SARIF_CLEAN_NAME}${TOOL_SUFFIX}"
 fi
 
+# Ensure project key does not exceed SonarQube's 400 character limit
+SONAR_PROJECT_KEY=${SONAR_PROJECT_KEY:0:400}
+
 # sonar scanner cli options
-SONAR_SCANNER_OPTS="-Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.sarifReportPaths=${TRIVY_SARIF_FILENAME}"
+SONAR_SCANNER_OPTS="-Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.sources=. -Dsonar.sarifReportPaths=${SARIF_FILENAME}"
 
 log_info "Importing SARIF report to SonarQube project: ${SONAR_PROJECT_KEY}"
 docker run \
@@ -120,6 +149,13 @@ if [ $RETVAL -ne 0 ]; then
     exit $RETVAL
 else
     log_info "SonarQube import completed successfully as project: ${SONAR_PROJECT_KEY}."
+fi
+
+if [ "$SCAN_TOOL" == "dockerscout" ]; then
+    log_info "To free up space, you can prune the Docker Scout cache and SBOMs with the following command:"
+    echo
+    echo "    docker scout cache prune --sboms --force"
+    echo
 fi
 
 exit $RETVAL
