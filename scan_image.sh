@@ -91,6 +91,7 @@ if [ "$SCAN_TOOL" == "trivy" ]; then
         -v "$TRIVY_REPORTS_DIR:/reports" \
         "$TRIVY_IMAGE" \
         image \
+        --scanners vuln \
         --timeout "$TRIVY_TIMEOUT" \
         --format sarif \
         --output "/reports/$SARIF_FILENAME" "$SCAN_IMAGE"
