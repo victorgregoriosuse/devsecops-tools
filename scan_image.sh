@@ -81,19 +81,22 @@ log_info "Pulling image: $SCAN_IMAGE"
 docker pull "$SCAN_IMAGE"
 
 if [ "$SCAN_TOOL" == "trivy" ]; then
-    SARIF_FILENAME="${SARIF_CLEAN_NAME}_Trivy.sarif"
+    TOOL_SUFFIX="_Trivy"
+    SARIF_FILENAME="${SARIF_CLEAN_NAME}${TOOL_SUFFIX}.sarif"
     # run trivy scan connecting to docker daemon via socket for seeded image
     log_info "Scanning image '$SCAN_IMAGE' with Trivy..."
     docker run \
         --rm \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "$TRIVY_REPORTS_DIR:/reports" \
-        "$TRIVY_IMAGE" image \
+        "$TRIVY_IMAGE" \
+        image \
         --timeout "$TRIVY_TIMEOUT" \
         --format sarif \
         --output "/reports/$SARIF_FILENAME" "$SCAN_IMAGE"
 elif [ "$SCAN_TOOL" == "dockerscout" ]; then
-    SARIF_FILENAME="${SARIF_CLEAN_NAME}_DockerScout.sarif"
+    TOOL_SUFFIX="_DockerScout"
+    SARIF_FILENAME="${SARIF_CLEAN_NAME}${TOOL_SUFFIX}.sarif"
     log_info "Scanning image '$SCAN_IMAGE' with Docker Scout..."
     docker scout cves "$SCAN_IMAGE" --format sarif --output "$TRIVY_REPORTS_DIR/$SARIF_FILENAME"
 else
@@ -119,7 +122,7 @@ fi
 if [ -n "$SONAR_PROJECT_KEY_OVERRIDE" ]; then
     SONAR_PROJECT_KEY="$SONAR_PROJECT_KEY_OVERRIDE"
 else
-    SONAR_PROJECT_KEY="${SARIF_CLEAN_NAME}"
+    SONAR_PROJECT_KEY="${SARIF_CLEAN_NAME}${TOOL_SUFFIX}"
 fi
 
 # Ensure project key does not exceed SonarQube's 400 character limit
